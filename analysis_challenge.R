@@ -1,8 +1,12 @@
 setwd("C:/Users/01465840.F875A4D1C344/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
 
+# index
+index <- 1:3400
+
+
 # read in and merge data
-d1 <- read.csv("data/track2/practice/acic_practice_0001.csv")
-d2 <- read.csv("data/track2/practice_year/acic_practice_year_0001.csv")
+d1 <- read.csv("data/track2/practice/acic_practice_0005.csv")
+d2 <- read.csv("data/track2/practice_year/acic_practice_year_0005.csv")
 d3 <- merge(d1,d2)
 
 # data management
@@ -17,6 +21,7 @@ dwide$X2 <- as.factor(dwide$X2)
 # descriptives
 plot(density(sqrt(dwide$n.patients.2)))
 ### TO DO Daten anschauen und verstehen!
+### TO DO naiver vergleich mit Mittelwerten
 
 ##############
 # LTMLE MSM  #
@@ -54,7 +59,7 @@ my.sum.measures <- array(c(c(1,0),c(1,1),
 
 
 
-m_1 <- ltmleMSM(dwide,
+m_1 <- try(ltmleMSM(dwide,
                         Anodes=c("A.3","A.4"),
                         Lnodes=c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3", 
                                 "V5_A_avg.3",  "V5_B_avg.3",  "V5_C_avg.3",
@@ -63,13 +68,15 @@ m_1 <- ltmleMSM(dwide,
                                 ),
                         Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                         Qform=NULL, gform=NULL, stratify=FALSE,
-                        SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                        SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                         final.Ynodes=c("Y.3","Y.4"),
                         regimes=regimesList,
                         working.msm="Y ~ A + Z",
                         summary.measures=my.sum.measures 
-)
+))
 summary(m_1)
+cc_trunc(m_1) # correct?
+# if(class(m_1)=="try-error"){m_1 <- ...}
 
 m_2 <- ltmleMSM(dwide,
                 Anodes=c("A.3","A.4"),
@@ -80,10 +87,10 @@ m_2 <- ltmleMSM(dwide,
                 ),
                 Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                 Qform=NULL, gform=NULL, stratify=FALSE,
-                SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                 final.Ynodes=c("Y.3","Y.4"),
                 regimes=regimesList,
-                working.msm="Y ~ A*time + Z",
+                working.msm="Y ~ A*time*Z",
                 summary.measures=my.sum.measures 
 )
 summary(m_2)
@@ -97,7 +104,7 @@ m_3 <- ltmleMSM(dwide,
                 ),
                 Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                 Qform=NULL, gform=NULL, stratify=FALSE,
-                SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                 final.Ynodes=c("Y.3","Y.4"),
                 regimes=regimesList,
                 working.msm="Y ~ A*Z*X1",
@@ -105,7 +112,7 @@ m_3 <- ltmleMSM(dwide,
 )
 summary(m_3)
 
-m_4 <- ltmleMSM(dwide,
+m_4 <- try(ltmleMSM(dwide,
                 Anodes=c("A.3","A.4"),
                 Lnodes=c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3", 
                          "V5_A_avg.3",  "V5_B_avg.3",  "V5_C_avg.3",
@@ -114,14 +121,14 @@ m_4 <- ltmleMSM(dwide,
                 ),
                 Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                 Qform=NULL, gform=NULL, stratify=FALSE,
-                SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                 final.Ynodes=c("Y.3","Y.4"),
                 regimes=regimesList,
                 working.msm="Y ~ A*Z*X2",
                 summary.measures=my.sum.measures 
-)
+))
 summary(m_4)
-
+# if(class(m1)=="try-error"){m1 <- ...}
 
 m_5 <- ltmleMSM(dwide,
                 Anodes=c("A.3","A.4"),
@@ -132,7 +139,7 @@ m_5 <- ltmleMSM(dwide,
                 ),
                 Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                 Qform=NULL, gform=NULL, stratify=FALSE,
-                SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                 final.Ynodes=c("Y.3","Y.4"),
                 regimes=regimesList,
                 working.msm="Y ~ A*Z*X3",
@@ -149,7 +156,7 @@ m_6 <- ltmleMSM(dwide,
                 ),
                 Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                 Qform=NULL, gform=NULL, stratify=FALSE,
-                SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                 final.Ynodes=c("Y.3","Y.4"),
                 regimes=regimesList,
                 working.msm="Y ~ A*Z*X4",
@@ -167,7 +174,7 @@ m_7 <- ltmleMSM(dwide,
                 ),
                 Ynodes=c("Y.3","Y.4"), survivalOutcome=F,
                 Qform=NULL, gform=NULL, stratify=FALSE,
-                SL.library=mylibrary2, estimate.time=F, variance.method="ic", gcomp=F,
+                SL.library=mylibrary2, estimate.time=F, variance.method="tmle", gcomp=F,
                 final.Ynodes=c("Y.3","Y.4"),
                 regimes=regimesList,
                 working.msm="Y ~ A*Z*X5",
@@ -176,20 +183,61 @@ m_7 <- ltmleMSM(dwide,
 summary(m_7)
 
 #### ESTIMANDS
-# find out how to generically extract Yrange or specify Yrange but make sure it makes sense for *all* data sets
-
+a<-attr(m_1$transformOutcome,"Yrange")[1]
+b<-attr(m_1$transformOutcome,"Yrange")[2] 
 #
-SATT <- (invlogit(t(c(1,1,1))%*%m_1$beta)*1620.238+499.518) - (invlogit(t(c(1,0,1))%*%m_1$beta)*+499.518)
+SATT <- (invlogit(t(c(1,1,1))%*%m_1$beta)*(b-a)+a) - (invlogit(t(c(1,0,1))%*%m_1$beta)*(b-a)+a)
 SATT
 
 #
-SATT_year_3 <- (invlogit(t(c(1,1,1,1,1))%*%m_2$beta)*1620.238+499.518) - (invlogit(t(c(1,0,1,1,0))%*%m_2$beta)*+499.518)
-SATT_year_4 <- (invlogit(t(c(1,1,2,1,2))%*%m_2$beta)*1620.238+499.518) - (invlogit(t(c(1,0,2,1,0))%*%m_2$beta)*+499.518)
+SATT_year_3 <- (invlogit(t(c(1,1,1,1,1,1,1,1))%*%m_2$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,1,0,0,1,0))%*%m_2$beta)*(b-a)+a)
+SATT_year_4 <- (invlogit(t(c(1,1,2,1,2,1,2,2))%*%m_2$beta)*(b-a)+a) - (invlogit(t(c(1,0,2,1,0,0,2,0))%*%m_2$beta)*(b-a)+a)
 SATT_year_3
 SATT_year_4
 
 #
-SATT_X1_1 <- (invlogit(t(c(1,1,1,1,1,1,1,1))%*%m_3$beta)*1620.238+499.518) - (invlogit(t(c(1,0,1,1,0,0,1,0))%*%m_3$beta)*+499.518)
-SATT_X1_0 <- (invlogit(t(c(1,1,1,0,1,0,0,0))%*%m_3$beta)*1620.238+499.518) - (invlogit(t(c(1,0,1,0,0,0,0,0))%*%m_3$beta)*+499.518)
+SATT_X1_1 <- (invlogit(t(c(1,1,1,1,1,1,1,1))%*%m_3$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,1,0,0,1,0))%*%m_3$beta)*(b-a)+a)
+SATT_X1_0 <- (invlogit(t(c(1,1,1,0,1,0,0,0))%*%m_3$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,0,0,0,0))%*%m_3$beta)*(b-a)+a)
+SATT_X1_0
+SATT_X1_1
 
-# equivalent for X2-X5
+SATT_X2_A <- (invlogit(t(c(1,1,1,0,0,1,0,0,0,0,0,0))%*%m_4$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,0,0,0,0,0,0,0,0))%*%m_4$beta)*(b-a)+a)
+SATT_X2_B <- (invlogit(t(c(1,1,1,1,0,1,1,0,1,0,1,0))%*%m_4$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,1,0,0,0,0,1,0,0,0))%*%m_4$beta)*(b-a)+a)
+SATT_X2_C <- (invlogit(t(c(1,1,1,0,1,1,0,1,0,1,0,1))%*%m_4$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,1,0,0,0,0,1,0,0))%*%m_4$beta)*(b-a)+a)
+SATT_X2_A
+SATT_X2_B
+SATT_X2_C
+
+SATT_X3_1 <- (invlogit(t(c(1,1,1,1,1,1,1,1))%*%m_5$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,1,0,0,1,0))%*%m_5$beta)*(b-a)+a)
+SATT_X3_0 <- (invlogit(t(c(1,1,1,0,1,0,0,0))%*%m_5$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,0,0,0,0))%*%m_5$beta)*(b-a)+a)
+SATT_X3_0 
+SATT_X3_1
+
+SATT_X4_A <- (invlogit(t(c(1,1,1,0,0,1,0,0,0,0,0,0))%*%m_6$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,0,0,0,0,0,0,0,0))%*%m_6$beta)*(b-a)+a)
+SATT_X4_B <- (invlogit(t(c(1,1,1,1,0,1,1,0,1,0,1,0))%*%m_6$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,1,0,0,0,0,1,0,0,0))%*%m_6$beta)*(b-a)+a)
+SATT_X4_C <- (invlogit(t(c(1,1,1,0,1,1,0,1,0,1,0,1))%*%m_6$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,1,0,0,0,0,1,0,0))%*%m_6$beta)*(b-a)+a)
+SATT_X4_A
+SATT_X4_B
+SATT_X4_C
+
+SATT_X5_1 <- (invlogit(t(c(1,1,1,1,1,1,1,1))%*%m_7$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,1,0,0,1,0))%*%m_7$beta)*(b-a)+a)
+SATT_X5_0 <- (invlogit(t(c(1,1,1,0,1,0,0,0))%*%m_7$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0,0,0,0,0))%*%m_7$beta)*(b-a)+a)
+SATT_X5_0 
+SATT_X5_1
+
+#### TABLE FOR RESPECTIVE DATASET
+c1 <- NA
+c2  <- c(rep("Overall",3),rep("X1",2),rep("X2",3),rep("X3",2),rep("X4",3),rep("X5",2))
+c3  <- c(rep("NA",3), "0","1","A","B","C","0","1","A","B","C","0","1")
+c4  <- c("NA",3,4,rep(NA,12))
+c5  <- c(SATT,SATT_year_3,SATT_year_4,SATT_X1_0,SATT_X1_1,SATT_X2_A,SATT_X2_B,SATT_X2_C,
+         SATT_X3_0,SATT_X3_1,SATT_X4_A,SATT_X4_B,SATT_X4_C,SATT_X5_0,SATT_X5_1)
+results <- data.frame(rep(NA,15))
+results$variable <- c2
+results$level    <- c3  
+results$year     <- c4
+results$satt     <- c5
+results <- results[,-1]
+results 
+
+# 90% CI über 1_3$msm und Kovarianzmatrix ...vcov(m_1$msm)
