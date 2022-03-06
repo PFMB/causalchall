@@ -1,14 +1,15 @@
 rm(list = ls())
-pacman::p_load("keras","tensorflow", "tfdatasets", "reticulate","dplyr","randomForest","mgcv","ggplot2","stringr","data.table")
+pacman::p_load("keras","tensorflow", "tfdatasets", "reticulate","dplyr",
+               "randomForest","mgcv","ggplot2","stringr","data.table","ROCR")
 set.seed(1)
 n <- 1000
 x1 <- runif(n)
 x2 <- runif(n)
 x3 <- runif(n)
 x <- matrix(rnorm(n*30), ncol = 30) # noise variables
-y <- plogis(3*x1*x2*x3 + 3*x2^3 - 5*sqrt(x3) + rnorm(n)) > 0.5
-mean(y)
-d = data.frame(y = as.integer(y),x1,x2,x3,x)
+x_fac <- as.character(sample(c("a","b","c"), n, replace = T))
+y <- plogis(3*x1*x2*x3 + 3*x2^3 - 5*sqrt(x3) + (x_fac != "a")*3 + rnorm(n)) > 0.5; mean(y)
+d = data.frame(y = as.integer(y),x1,x2,x3,x_fac,x)
 
 row_idx <- 1:nrow(d)
 tst_idx <- sample(row_idx, round(0.2*nrow(d)))
@@ -27,7 +28,7 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   # tr_idx <- row_idx[!row_idx %in% tst_idx]
   
   pacman::p_load("keras","tensorflow", "tfdatasets", "reticulate","dplyr")
-  st_time <- Sys.time()
+  #st_time <- Sys.time()
   
   dd <- X <- X %>% as_tibble(.name_repair = "minimal")
   newX <- newX %>% as_tibble(.name_repair = "minimal")
@@ -36,7 +37,12 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   
   spec <- feature_spec(dd, Y ~ . ) %>%
     step_numeric_column(all_numeric(), normalizer_fn = scaler_standard()) %>% 
+    step_categorical_column_with_vocabulary_list(all_nominal()) %>% # factors/categorical should be coded as char
+    step_indicator_column(all_nominal()) %>% 
+    #step_embedding_column(all_nominal(), dimension = ...) %>% 
     fit()
+  
+  #str(spec$dense_features())
   
   input <- layer_input_from_dataset(dd %>% select(-Y))
   
@@ -85,10 +91,12 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
 }
 
 ## Classifier 1:
-nn_pred <- SL.NN_base(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y), newX = d[tst_idx,] %>% select(-y))
+nn_pred <- SL.NN_base(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y), 
+                      newX = d[tst_idx,] %>% select(-y))
 
 ## Classifier 2:
-form <- paste0("y ~ s(x1,x2,x3) + s(x2) + s(x3) + ", paste0("X",1:ncol(x), collapse = " + "))
+d$x_fac <- as.factor(d$x_fac)
+form <- paste0("y ~ s(x1,x2,x3) + s(x2) + s(x3) + x_fac + ", paste0("X",1:ncol(x), collapse = " + "))
 m <- gam(as.formula(form), family = binomial(), data = d[tr_idx,]); summary(m)
 gam_pred <- predict(m, type = "response", newdata = d[tst_idx,])
 
@@ -182,7 +190,7 @@ tpr_fpr[, max_tpr := max(tpr), by = list(fpr,method)]
 ggplot(tpr_fpr) + geom_line(aes(x = fpr, y = max_tpr, color = method))
 
 # not clear how to proceed with the non-monotonictiy, see ROCR package for an comparison
-# non-monotinicity stems from having different tpr for the same fpr
+# non-monotonicity stems from having different tpr for the same fpr
 # see for a comparison:
 # sorted_pr <- sort(preds$nn)
 # dups <- rev(duplicated(rev(sorted_pr)))
