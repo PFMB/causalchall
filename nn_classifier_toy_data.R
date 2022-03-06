@@ -28,7 +28,11 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   # tr_idx <- row_idx[!row_idx %in% tst_idx]
   
   pacman::p_load("keras","tensorflow", "tfdatasets", "reticulate","dplyr")
-  #st_time <- Sys.time()
+  st_time <- Sys.time()
+  set_random_seed(1)
+  
+  #cbind(X, model.matrix(~ .^2, data = X))
+  #cbind(newX, model.matrix(~ .^2, data = X))
   
   dd <- X <- X %>% as_tibble(.name_repair = "minimal")
   newX <- newX %>% as_tibble(.name_repair = "minimal")
@@ -36,13 +40,14 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   dd$Y <- Y
   
   spec <- feature_spec(dd, Y ~ . ) %>%
+    #step_crossed_column(c(all_numeric(), all_nominal()), hash_bucket_size = 100) %>%
     step_numeric_column(all_numeric(), normalizer_fn = scaler_standard()) %>% 
     step_categorical_column_with_vocabulary_list(all_nominal()) %>% # factors/categorical should be coded as char
     step_indicator_column(all_nominal()) %>% 
     #step_embedding_column(all_nominal(), dimension = ...) %>% 
     fit()
   
-  #str(spec$dense_features())
+  # check: str(spec$dense_features())
   
   input <- layer_input_from_dataset(dd %>% select(-Y))
   
@@ -80,14 +85,14 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   )
   
   history <- model %>% fit(x = X, y = Y, epochs = 12e3,
-                           validation_split = 0.2, verbose = 2, batch_size = 32L,#shuffle = FALSE,
+                           validation_split = 0.2, verbose = 0, batch_size = 32L,#shuffle = FALSE,
                            view_metrics = FALSE, callbacks = lr_sched
   )
-  
-  p <- model %>% predict(newX)
+
   end_time <- Sys.time()
+  cat("- NN learner took", format(end_time - st_time, units = "min"),"-\n")
   
-  p
+  model %>% predict(newX)
 }
 
 ## Classifier 1:
@@ -96,13 +101,15 @@ nn_pred <- SL.NN_base(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y),
 
 ## Classifier 2:
 d$x_fac <- as.factor(d$x_fac)
-form <- paste0("y ~ s(x1,x2,x3) + s(x2) + s(x3) + x_fac + ", paste0("X",1:ncol(x), collapse = " + "))
+form <- paste0("y ~ s(x1,x2,x3) + s(x2) + s(x3) + x_fac + ", 
+               paste0("X",1:ncol(x), collapse = " + "))
 m <- gam(as.formula(form), family = binomial(), data = d[tr_idx,]); summary(m)
 gam_pred <- predict(m, type = "response", newdata = d[tst_idx,])
 
 ## Classifier 3:
 fit.rf <- randomForest(y = as.factor(d[tr_idx,"y"]), x = d[tr_idx,] %>% select(-y), 
-                       ntree = 300, xtest = d[tst_idx,] %>% select(-y), keep.forest = TRUE, importance = TRUE)
+                       ntree = 300, xtest = d[tst_idx,] %>% select(-y), 
+                       keep.forest = TRUE, importance = TRUE)
 rf_pred <- fit.rf$test$predicted
 
 ## Classifier 4:
@@ -153,9 +160,11 @@ SL.xgboost_man <- function (Y, X, newX, family, obsWeights, id, ntrees = 1000,
 
 famil_y <- list(family = "binomial")
 out_p <- SL.xgboost_man(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y),
-                        newX = d[tst_idx,] %>% select(-y), family = famil_y, obsWeights = rep(1, length(tr_idx)))
+                        newX = d[tst_idx,] %>% select(-y), family = famil_y, 
+                        obsWeights = rep(1, length(tr_idx)))
 
-preds <- data.frame(nn = nn_pred, gam = gam_pred, rf = fit.rf$test$votes[,"1"], xgb = out_p$pred, true = d[tst_idx, "y"])
+preds <- data.frame(nn = nn_pred, gam = gam_pred, rf = fit.rf$test$votes[,"1"], 
+                    xgb = out_p$pred, true = d[tst_idx, "y"])
 
 #colMeans(apply(preds, 2, function(x) x == preds$true))
 
@@ -189,14 +198,14 @@ setDT(tpr_fpr)
 tpr_fpr[, max_tpr := max(tpr), by = list(fpr,method)]
 ggplot(tpr_fpr) + geom_line(aes(x = fpr, y = max_tpr, color = method))
 
-# not clear how to proceed with the non-monotonictiy, see ROCR package for an comparison
+# not clear how to proceed with the non-monotonicity, see ROCR package for an comparison
 # non-monotonicity stems from having different tpr for the same fpr
 # see for a comparison:
 # sorted_pr <- sort(preds$nn)
 # dups <- rev(duplicated(rev(sorted_pr)))
 # cutoffs <- c(Inf, sorted_pr[!dups])
 # #trace(prediction, edit = T)
-# pred <- ROCR::prediction(preds$rf, preds$true)
+# pred <- ROCR::prediction(preds$nn, preds$true)
 # #trace(performance, edit = T)
 # perf <- ROCR::performance(pred,"tpr","fpr")
 # ROCR::plot(perf,colorize=TRUE)
@@ -208,12 +217,12 @@ roc_func <- function(fpr_value) {
 }
 
 meth <- "nn"
-round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.969
+round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.988
 meth <- "gam"
-round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.963
+round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.985
 meth <- "rf"
-round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.916
+round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.973
 meth <- "xgb"
-round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.96
+round(integrate(Vectorize(roc_func), lower = 0, upper = 1, subdivisions = 200L)$value,3) # 0.988
 
 
