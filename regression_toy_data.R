@@ -63,25 +63,25 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial", nn_arc = "A") {
                           C = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
                                         layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_1",
                                                     kernel_regularizer = regularizer_l1(0.1)) %>%
-                                        layer_batch_normalization() %>%
                                         layer_dropout(rate = 0.2) %>%
+                                        layer_batch_normalization() %>%
                                         layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_2",
                                                     kernel_regularizer = regularizer_l1(0.1)) %>%
-                                        layer_batch_normalization() %>%
-                                        layer_dropout(rate = 0.2),
+                                        layer_dropout(rate = 0.2) %>%
+                                        layer_batch_normalization(),
                           D = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
                                         layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_1",
                                                     kernel_regularizer = regularizer_l1(0.1)) %>%
-                                        layer_batch_normalization() %>%
                                         layer_dropout(rate = 0.2) %>%
+                                        layer_batch_normalization() %>%
                                         layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_2", 
                                                     kernel_regularizer = regularizer_l1(0.1)) %>%
-                                        layer_batch_normalization() %>%
                                         layer_dropout(rate = 0.2) %>%
+                                        layer_batch_normalization() %>%
                                         layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_3", 
                                                     kernel_regularizer = regularizer_l1(0.1)) %>%
-                                        layer_batch_normalization() %>%
-                                        layer_dropout(rate = 0.2))
+                                        layer_dropout(rate = 0.2) %>%
+                                        layer_batch_normalization())
 
   output <- output %>%  layer_dense(units = 1, name = "output_layer", 
                                     activation = ifelse(family == "binomial", "sigmoid", "linear")) 
@@ -94,7 +94,7 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial", nn_arc = "A") {
   )
   
   lr_sched =  list(
-    callback_early_stopping(monitor = "val_loss", patience = 200),
+    callback_early_stopping(monitor = "val_loss", patience = ifelse(family == "binomial", 200, 100)),
     callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),patience = 30, factor = 0.8)
     # callback_tensorboard("logs/run_a", histogram_freq = 5)
     # callback_learning_rate_scheduler(

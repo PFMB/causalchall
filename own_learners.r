@@ -2,6 +2,286 @@
 # LEARNERS #
 ############
 
+SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn_arc = "A", l1_pen = 0.1, ...) {
+  
+  # X: named matrix of features for training
+  # Y: vector of responses/labels for training 
+  # newX: named matrix of features for testing
+  # family: character "binomial" for binary classification, regression otherwise
+  # type of architecture: 1-4 as integer
+  
+  # no train/test split needed due to super learner  
+  # row_idx <- 1:nrow(X)
+  # tst_idx <- sample(row_idx, round(0.2*nrow(X)))
+  # tr_idx <- row_idx[!row_idx %in% tst_idx]
+  
+  pacman::p_load("keras","tensorflow", "tfdatasets", "reticulate","dplyr")
+  st_time <- Sys.time()
+  set_random_seed(1)
+  
+  X <- X[,apply(X, 2, function(x) all(x != 1))] # SL passes a column of 1s (intercept)
+  newX <- newX[,apply(newX, 2, function(x) all(x != 1))]
+  
+  # SL sometimes indicates family$family == "binomial" when Y is actually continuous
+  family <- family$family 
+  if(length(unique(Y)) > 2) family <- "non-binomial"
+  
+  out_try_catch <- tryCatch({
+  dd <- X <- X %>% as_tibble(.name_repair = "minimal")
+  newX <- newX %>% as_tibble(.name_repair = "minimal")
+  Y <- array(Y)
+  dd$Y <- Y
+  
+  spec <- feature_spec(dd, Y ~ . ) %>%
+    #step_crossed_column(c(all_numeric(), all_nominal()), hash_bucket_size = 100) %>%
+    step_numeric_column(all_numeric(), normalizer_fn = scaler_standard()) %>% 
+    step_categorical_column_with_vocabulary_list(all_nominal()) %>% # factors/categorical should be coded as char
+    step_indicator_column(all_nominal()) %>% 
+    #step_embedding_column(all_nominal(), dimension = ...) %>% 
+    fit()
+  
+  # check: str(spec$dense_features())
+  
+  input <- layer_input_from_dataset(dd %>% select(-Y))
+  
+  output <- switch(nn_arc, A = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)),
+                   B = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_2",
+                                 kernel_regularizer = regularizer_l1(l1_pen)),
+                   C = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization() %>%
+                     layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_2",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization(),
+                   D = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization() %>%
+                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_2", 
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization() %>%
+                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_3", 
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization())
+  
+  output <- output %>%  layer_dense(units = 1, name = "output_layer", 
+                                    activation = ifelse(family == "binomial", "sigmoid", "linear")) 
+  model <- keras_model(input, output)
+  
+  model %>% compile(
+    loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
+    optimizer = optimizer_rmsprop(learning_rate = 5e-3), #optimizer_rmsprop
+    metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
+  )
+  
+  lr_sched =  list(
+    callback_early_stopping(monitor = "val_loss", patience = ifelse(family == "binomial", 30, 15)),
+    callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),
+                                  patience = ifelse(family == "binomial", 10, 5), factor = 0.8)
+    # callback_tensorboard("logs/run_a", histogram_freq = 5)
+    # callback_learning_rate_scheduler(
+    #   tf$keras$experimental$CosineDecayRestarts(.02, 10, t_mul = 2, m_mul = .8))
+  )
+  
+  history <- model %>% fit(x = X, y = Y, epochs = 12e3,
+                           validation_split = 0.2, verbose = 2, batch_size = 32L,#shuffle = FALSE,
+                           view_metrics = FALSE, callbacks = lr_sched, sample_weight = array(obsWeights)
+  )
+  
+  class(model) <- "SL.NN_base"
+  fit <- list(object = model)
+  class(fit) <- "SL.NN_base"
+  out <- list(pred = model %>% predict(newX), fit = model)
+  
+  end_time <- Sys.time()
+  cat("- NN learner took", format(end_time - st_time, units = "min"),"-\n")
+  
+  #browser()
+  out
+  
+  }, error = function(e) {
+    meanY <- weighted.mean(Y, w = obsWeights)
+    pred <- rep.int(meanY, times = nrow(newX))
+    fit <- list(object = meanY)
+    out <- list(pred = pred, fit = fit)
+    class(out$fit) <- c("SL.mean")
+    out
+  })
+  
+  out_try_catch
+}
+
+predict.SL.NN_base <- function(object, newdata, family, ...) 
+{
+  pacman::p_load(keras,tensorflow, tfdatasets, reticulate,dplyr)
+  
+  object$object %>% predict(newdata)
+}
+
+# Try different Hyperparamters
+tuneGrid <- expand.grid(nn_arc = c("A","B","C","D"), l1_pen = c(0.01, 0.1))
+for (i in seq(nrow(tuneGrid))) {
+  eval(parse(text = paste0(
+    "SL.NN_base_arch_", tuneGrid[i, 1], "_l1_", tuneGrid[i, 2],
+    "<- function(..., nn_arc = ", tuneGrid[i, 1], ", l1_p = ", tuneGrid[i, 2], ")
+                           {SL.NN_base(..., nn_arc = nn_arc, l1_pen = l1_pen)}"
+  )))
+}
+
+
+SL.glm.interaction_info <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, ...) {
+  cat("- GLM Interaction was started and is making predictions - \n")
+  glm_time <- system.time({
+    
+    # chose family dependent upon response variable
+    Y <- as.vector(as.matrix(Y))
+    if (all(Y == 0 | Y == 1)) {
+      family$family <- binomial()
+    } else {
+      family$family <- gaussian() # scat() also reasonable but computationally intense
+    }
+    
+    if (is.matrix(X)) {
+      X <- as.data.frame(X)
+    }
+    fit.glm <- glm(Y ~ .^2, data = X, family = family$family, weights = obsWeights)
+    if (is.matrix(newX)) {
+      newX <- as.data.frame(newX)
+    }
+    pred <- predict(fit.glm, newdata = newX, type = "response")
+    fit <- list(object = fit.glm)
+    class(fit) <- "SL.glm"
+    out <- list(pred = pred, fit = fit)
+  })
+  
+  cat("- GLM Interaction was finished lasting: ", round(unclass(glm_time)["elapsed"], 2), " - \n")
+  return(out)
+}
+
+
+SL.gam2 <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, deg.gam = 2, cts.num = 5,
+                    ...) {
+  
+  # deg.gam == 2 is needed due to frequently occurring convergence failure
+  # chose family dependent upon response variable
+  Y <- as.vector(as.matrix(Y))
+  if (all(Y == 0 | Y == 1)) {
+    family$family <- binomial()
+  } else {
+    family$family <- gaussian() # scat() also reasonable but computationally intense
+  }
+  
+  cat(" - gam::gam was started and is making predictions - \n")
+  gam_time <- system.time({
+    SuperLearner:::.SL.require("gam")
+    s <- gam:::s # s() is also used by 'mgcv' package - avoid clash
+    
+    # adjust model formula for metric and categorical predictors
+    metric_var <- apply(X, 2, function(x) (length(unique(x)) > cts.num))
+    if (sum(metric_var) != 0 & sum(metric_var) != length(metric_var)) {
+      # metric and categorical variables
+      gam.model <- as.formula(paste("Y~", paste(paste("s(",
+                                                      colnames(X[, metric_var, drop = FALSE]), ",", deg.gam,
+                                                      ")",
+                                                      sep = ""
+      ), collapse = "+"), "+", paste(colnames(X[,
+                                                !metric_var,
+                                                drop = FALSE
+      ]), collapse = "+")))
+    }
+    if (all(metric_var)) {
+      # metric variables only
+      gam.model <- as.formula(paste("Y~", paste(paste("s(",
+                                                      colnames(X[, metric_var, drop = FALSE]), ",", deg.gam,
+                                                      ")",
+                                                      sep = ""
+      ), collapse = "+")))
+    } else {
+      # all categorical
+      gam.model <- as.formula(paste("Y~", paste(colnames(X),
+                                                collapse = "+"
+      ), sep = ""))
+    }
+    fit.gam <- gam::gam(gam.model,
+                        data = X, family = family$family,
+                        control = gam::gam.control(maxit = 50, bf.maxit = 50),
+                        weights = obsWeights
+    )
+    # or predict.gam depending on version
+    pred <- gam::predict.Gam(fit.gam, newdata = newX, type = "response")
+    fit <- list(object = fit.gam)
+    out <- list(pred = pred, fit = fit)
+    class(out$fit) <- c("SL.gam")
+  })
+  cat("- gam::gam was finished lasting: ", round(unclass(gam_time)["elapsed"], 2), " - \n")
+  return(out)
+}
+
+
+SL.randomForest_base <- function(Y, X, newX = NULL, family = list(), mtry = ifelse(family$family ==
+                                                                                     "gaussian", max(floor(ncol(X) / 3), 1), floor(sqrt(ncol(X)))),
+                                 ntree = 300, nodesize = ifelse(family$family == "gaussian",
+                                                                5, 1
+                                 ), maxnodes = NULL, importance = FALSE, ...) {
+  cat(" - randomForest was started (ntree =", ntree, ") and is making predictions - \n")
+  randomForest_time <- system.time({
+    SuperLearner:::.SL.require("randomForest")
+    
+    # avoid infinite search for split points in trees
+    if (all(apply(X,2,var) == 0)) {
+      fit.rf <- "Empty"
+      attr(fit.rf, "class") <- "try-error"
+      pred <- rep(mean(Y), nrow(Xnew))
+      fit <- list(object = fit.rf)
+      cat("- Failed random forest - \n")
+    }
+    
+    if (family$family == "gaussian" & !exists("fit.rf")) {
+      fit.rf <- randomForest::randomForest(Y ~ .,
+                                           data = X,
+                                           ntree = ntree, xtest = newX, keep.forest = TRUE,
+                                           mtry = mtry, nodesize = nodesize, maxnodes = maxnodes,
+                                           importance = importance
+      )
+      try(pred <- fit.rf$test$predicted, silent = TRUE)
+      if (any(class(fit.rf) == "try-error")) {
+        pred <- rep(mean(Y), nrow(Xnew))
+        cat("- Failed random forest - \n")
+      }
+      fit <- list(object = fit.rf)
+    }
+    if (family$family == "binomial" & !exists("fit.rf")) {
+      fit.rf <- randomForest::randomForest(
+        y = as.factor(Y),
+        x = X, ntree = ntree, xtest = newX, keep.forest = TRUE,
+        mtry = mtry, nodesize = nodesize, maxnodes = maxnodes,
+        importance = importance
+      )
+      try(pred <- fit.rf$test$votes[, 2], silent = TRUE)
+      if (any(class(fit.rf) == "try-error")) {
+        pred <- rep(mean(Y), nrow(Xnew))
+        cat("- Failed random forest - \n")
+      }
+      fit <- list(object = fit.rf)
+    }
+    out <- list(pred = pred, fit = fit)
+    class(out$fit) <- c("SL.randomForest")
+  })
+  cat("- randomForest was finished lasting: ", round(unclass(randomForest_time)["elapsed"], 2), " - \n")
+  return(out)
+}
+
 SL.gbm2  <- function(Y, X, newX, family, obsWeights, gbm.trees = 10000,
     interaction.depth = 2, shrinkage = 0.001, ...)
 {
@@ -291,3 +571,4 @@ plot.learner <- function(x, by.intervention=TRUE){
 
   return(grid.arrange(p1,p2))  
 }
+

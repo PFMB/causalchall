@@ -15,12 +15,13 @@ row_idx <- 1:nrow(d)
 tst_idx <- sample(row_idx, round(0.2*nrow(d)))
 tr_idx <- row_idx[!row_idx %in% tst_idx]
 
-SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
+SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn_arc = "A", l1_pen = 0.1, ...) {
   
   # X: named matrix of features for training
   # Y: vector of responses/labels for training 
   # newX: named matrix of features for testing
   # family: character "binomial" for binary classification, regression otherwise
+  # type of architecture: 1-4 as integer
   
   # no train/test split needed due to super learner  
   # row_idx <- 1:nrow(X)
@@ -31,8 +32,12 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   st_time <- Sys.time()
   set_random_seed(1)
   
-  #cbind(X, model.matrix(~ .^2, data = X))
-  #cbind(newX, model.matrix(~ .^2, data = X))
+  X <- X[,apply(X, 2, function(x) all(x != 1))] # SL passes a column of 1s (intercept)
+  newX <- newX[,apply(newX, 2, function(x) all(x != 1))]
+  
+  # SL sometimes indicates family$family == "binomial" when Y is actually continuous
+  family <- family$family 
+  if(length(unique(Y)) > 2) family <- "non-binomial"
   
   dd <- X <- X %>% as_tibble(.name_repair = "minimal")
   newX <- newX %>% as_tibble(.name_repair = "minimal")
@@ -51,53 +56,79 @@ SL.NN_base <- function(Y, X, newX = NULL, family = "binomial") {
   
   input <- layer_input_from_dataset(dd %>% select(-Y))
   
-  output <- input %>% 
-    layer_dense_features(dense_features(spec), name = "layer_0") %>%
-    layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_1",
-                kernel_regularizer = regularizer_l1(0.1)) %>%
-    layer_batch_normalization() %>%
-    layer_dropout(rate = 0.2) %>%
-    layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_2", 
-                kernel_regularizer = regularizer_l1(0.1)) %>%
-    layer_batch_normalization() %>%
-    layer_dropout(rate = 0.2) %>%
-    layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_3", 
-                kernel_regularizer = regularizer_l1(0.1)) %>%
-    layer_batch_normalization() %>%
-    layer_dropout(rate = 0.2) %>%
-    layer_dense(units = 1, name = "output_layer", 
-                activation = ifelse(family == "binomial", "sigmoid", "linear")) 
+  output <- switch(nn_arc, A = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)),
+                   B = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_2",
+                                 kernel_regularizer = regularizer_l1(l1_pen)),
+                   C = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization() %>%
+                     layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_2",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization(),
+                   D = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_1",
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization() %>%
+                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_2", 
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization() %>%
+                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_3", 
+                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                     layer_dropout(rate = 0.2) %>%
+                     layer_batch_normalization())
   
+  output <- output %>%  layer_dense(units = 1, name = "output_layer", 
+                                    activation = ifelse(family == "binomial", "sigmoid", "linear")) 
   model <- keras_model(input, output)
   
   model %>% compile(
     loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
-    optimizer = optimizer_rmsprop(learning_rate = 1e-3), #optimizer_rmsprop
+    optimizer = optimizer_rmsprop(learning_rate = 5e-3), #optimizer_rmsprop
     metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
   )
   
   lr_sched =  list(
-    callback_early_stopping(monitor = "val_loss", patience = 200),
-    callback_reduce_lr_on_plateau(monitor = "val_accuracy",patience = 30, factor = 0.8)
+    callback_early_stopping(monitor = "val_loss", patience = ifelse(family == "binomial", 30, 15)),
+    callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),
+                                  patience = ifelse(family == "binomial", 10, 5), factor = 0.8)
     # callback_tensorboard("logs/run_a", histogram_freq = 5)
     # callback_learning_rate_scheduler(
     #   tf$keras$experimental$CosineDecayRestarts(.02, 10, t_mul = 2, m_mul = .8))
   )
   
-  history <- model %>% fit(x = X, y = Y, epochs = 12e3,
-                           validation_split = 0.2, verbose = 0, batch_size = 32L,#shuffle = FALSE,
-                           view_metrics = FALSE, callbacks = lr_sched
+  history <- model %>% fit(x = X, y = Y, epochs = 5,
+                           validation_split = 0.2, verbose = 2, batch_size = 32L,#shuffle = FALSE,
+                           view_metrics = FALSE, callbacks = lr_sched, sample_weight = array(obsWeights)
   )
-
+  
+  #class(model) <- "SL.NN_base"
+  fit <- list(object = model)
+  class(fit) <- "SL.NN_base"
+  out <- list(pred = model %>% predict(newX), fit = model)
+  
   end_time <- Sys.time()
   cat("- NN learner took", format(end_time - st_time, units = "min"),"-\n")
   
-  model %>% predict(newX)
+  #browser()
+  out
+
 }
 
 ## Classifier 1:
+fam <- list(family = "binomial")
 nn_pred <- SL.NN_base(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y), 
-                      newX = d[tst_idx,] %>% select(-y))
+                      newX = d[tst_idx,] %>% select(-y), family = fam, obsWeights = rnorm(nrow(d[tr_idx,])))
+mean(nn_pred$pred)
 
 ## Classifier 2:
 d$x_fac <- as.factor(d$x_fac)
