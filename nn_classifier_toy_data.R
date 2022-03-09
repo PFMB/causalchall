@@ -39,6 +39,13 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   family <- family$family 
   if(length(unique(Y)) > 2) family <- "non-binomial"
   
+  if (ncol(X) != ncol(newX)) {
+    cl_Xcol <- colnames(X)
+    cl_newX <- colnames(newX)
+    newX <- newX[,cl_newX %in% cl_Xcol, drop = F]
+    X <- X[,cl_Xcol %in% cl_newX, drop = F]
+  }
+  
   dd <- X <- X %>% as_tibble(.name_repair = "minimal")
   newX <- newX %>% as_tibble(.name_repair = "minimal")
   Y <- array(Y)
@@ -93,35 +100,47 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   
   model %>% compile(
     loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
-    optimizer = optimizer_rmsprop(learning_rate = 5e-3), #optimizer_rmsprop
+    optimizer = optimizer_rmsprop(learning_rate = 1e-3), #optimizer_rmsprop
     metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
   )
   
   lr_sched =  list(
-    callback_early_stopping(monitor = "val_loss", patience = ifelse(family == "binomial", 30, 15)),
+    callback_early_stopping(monitor = "val_loss", patience = ifelse(family == "binomial", 20, 10)),
     callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),
-                                  patience = ifelse(family == "binomial", 10, 5), factor = 0.8)
+                                  patience = 5, factor = 0.8)
     # callback_tensorboard("logs/run_a", histogram_freq = 5)
     # callback_learning_rate_scheduler(
     #   tf$keras$experimental$CosineDecayRestarts(.02, 10, t_mul = 2, m_mul = .8))
   )
   
-  history <- model %>% fit(x = X, y = Y, epochs = 5,
-                           validation_split = 0.2, verbose = 2, batch_size = 32L,#shuffle = FALSE,
+  history <- model %>% fit(x = X, y = Y, epochs = 1,
+                           validation_split = 0.2, verbose = 2, batch_size = nrow(X),#shuffle = FALSE,
                            view_metrics = FALSE, callbacks = lr_sched, sample_weight = array(obsWeights)
   )
   
   #class(model) <- "SL.NN_base"
   fit <- list(object = model)
   class(fit) <- "SL.NN_base"
-  out <- list(pred = model %>% predict(newX), fit = model)
+  pred <- model %>% predict(newX)
+  out <- list(pred = pred, fit = fit)
+  
+  # }, error = function(e) {
+  #   
+  #   meanY <- weighted.mean(Y, w = obsWeights)
+  #   pred <- rep.int(meanY, times = nrow(newX))
+  #   fit <- list(object = meanY)
+  #   out <- list(pred = pred, fit = fit)
+  #   class(out$fit) <- c("SL.mean")
+  #   cat("- NN failed: took weighted mean instead - \n")
+  #   out
+  #   
+  # })
   
   end_time <- Sys.time()
   cat("- NN learner took", format(end_time - st_time, units = "min"),"-\n")
   
-  #browser()
   out
-
+  
 }
 
 ## Classifier 1:

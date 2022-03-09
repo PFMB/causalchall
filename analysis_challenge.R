@@ -69,25 +69,30 @@ source('own_learners.r')
 # mylibrary2 <- list(Q=list("SL.mean","SL.glm", "SL.bayesglm", "SL.stepAIC"),
 # g=list("SL.mean","SL.glm", "SL.bayesglm", "SL.stepAIC"))
 
-mylibrary2 <- list(Q=list("SL.mean","SL.NN_base"),
-g=list("SL.mean","SL.NN_base"))
+NN_learners <- ls()[startsWith(ls(),"SL.NN_base_arch")]
+
+mylibrary2 <- list(Q=c("SL.glm",NN_learners),
+                   g=c("SL.glm"))
 
 
 ###################################################################################################################
 
 #                        
 regimesList <- list(function(row) c(1,1),
-                    function(row) c(0,0)
-
-)
+                    function(row) c(0,0))
+# library(SuperLearner)
+# trace(predict.SuperLearner, edit = T)
 
 my.sum.measures <- array(c(c(1,0),c(1,1),
                            c(1,0),c(2,2))
                          ,dim=c(2,2,2),dimnames=list(NULL,c("A","time"),NULL))
 
+# trace(SuperLearner:::predict.SuperLearner, edit = T)
+# trace(SuperLearner:::SL.glm, edit = T)
+# trace(SuperLearner:::predict.SL.glm, edit = T)
 
 
-m_1 <- try(ltmleMSM(dwide,
+m1 <- ltmleMSM(dwide,
                         Anodes=c("A.3","A.4"),
                         Lnodes=c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3", 
                                 "V5_A_avg.3",  "V5_B_avg.3",  "V5_C_avg.3",
@@ -102,7 +107,7 @@ m_1 <- try(ltmleMSM(dwide,
                         working.msm="Y ~ A * Z",
                         summary.measures=my.sum.measures,
                         observation.weights=(dwide$n.patients.3+dwide$n.patients.4)/2
-))
+)
 summary(m_1)
 #cc_trunc(m_1) # correct?
 

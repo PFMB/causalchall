@@ -20,13 +20,19 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   set_random_seed(1)
   
   X <- X[,apply(X, 2, function(x) all(x != 1))] # SL passes a column of 1s (intercept)
-  newX <- newX[,apply(newX, 2, function(x) all(x != 1))]
+  newX <- newX[,apply(newX, 2, function(xx) all(xx != 1))]
   
   # SL sometimes indicates family$family == "binomial" when Y is actually continuous
   family <- family$family 
   if(length(unique(Y)) > 2) family <- "non-binomial"
   
-  out_try_catch <- tryCatch({
+  if (ncol(X) != ncol(newX)) {
+    cl_Xcol <- colnames(X)
+    cl_newX <- colnames(newX)
+    newX <- newX[,cl_newX %in% cl_Xcol, drop = F]
+    X <- X[,cl_Xcol %in% cl_newX, drop = F]
+  }
+  
   dd <- X <- X %>% as_tibble(.name_repair = "minimal")
   newX <- newX %>% as_tibble(.name_repair = "minimal")
   Y <- array(Y)
@@ -81,7 +87,7 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   
   model %>% compile(
     loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
-    optimizer = optimizer_rmsprop(learning_rate = 5e-3), #optimizer_rmsprop
+    optimizer = optimizer_rmsprop(learning_rate = 1e-3), #optimizer_rmsprop
     metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
   )
   
@@ -99,42 +105,51 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
                            view_metrics = FALSE, callbacks = lr_sched, sample_weight = array(obsWeights)
   )
   
-  class(model) <- "SL.NN_base"
+  #class(model) <- "SL.NN_base"
   fit <- list(object = model)
   class(fit) <- "SL.NN_base"
-  out <- list(pred = model %>% predict(newX), fit = model)
+  pred <- model %>% predict(newX)
+  out <- list(pred = pred, fit = fit)
+  
+  # }, error = function(e) {
+  #   
+  #   meanY <- weighted.mean(Y, w = obsWeights)
+  #   pred <- rep.int(meanY, times = nrow(newX))
+  #   fit <- list(object = meanY)
+  #   out <- list(pred = pred, fit = fit)
+  #   class(out$fit) <- c("SL.mean")
+  #   cat("- NN failed: took weighted mean instead - \n")
+  #   out
+  #   
+  # })
   
   end_time <- Sys.time()
   cat("- NN learner took", format(end_time - st_time, units = "min"),"-\n")
   
-  #browser()
   out
   
-  }, error = function(e) {
-    meanY <- weighted.mean(Y, w = obsWeights)
-    pred <- rep.int(meanY, times = nrow(newX))
-    fit <- list(object = meanY)
-    out <- list(pred = pred, fit = fit)
-    class(out$fit) <- c("SL.mean")
-    out
-  })
-  
-  out_try_catch
 }
 
-predict.SL.NN_base <- function(object, newdata, family, ...) 
-{
-  pacman::p_load(keras,tensorflow, tfdatasets, reticulate,dplyr)
+predict.SL.NN_base <- function(object, newdata, family, ...) {
   
-  object$object %>% predict(newdata)
-}
+  # SL issue: no. of columns of X and newX might differ for some unknown reason, this is
+  # taken care of this in the SL.NN_base method but also needs to be taken care of
+  # here
+  
+  vars <- names(get_input_at(object$object %>% get_layer("layer_0"), node_index = 0L))
+  if (ncol(newdata) != length(vars)) {
+    cl_nms <- colnames(newdata)
+    newdata <- newdata[, cl_nms[cl_nms %in% vars], drop = F]
+  }
+  predict(object = object$object, x = newdata)
+} 
 
 # Try different Hyperparamters
 tuneGrid <- expand.grid(nn_arc = c("A","B","C","D"), l1_pen = c(0.01, 0.1))
 for (i in seq(nrow(tuneGrid))) {
   eval(parse(text = paste0(
     "SL.NN_base_arch_", tuneGrid[i, 1], "_l1_", tuneGrid[i, 2],
-    "<- function(..., nn_arc = ", tuneGrid[i, 1], ", l1_p = ", tuneGrid[i, 2], ")
+    "<- function(..., nn_arc = '", tuneGrid[i, 1], "', l1_pen = ", tuneGrid[i, 2], ")
                            {SL.NN_base(..., nn_arc = nn_arc, l1_pen = l1_pen)}"
   )))
 }
