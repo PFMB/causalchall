@@ -2,34 +2,152 @@
 # LEARNERS #
 ############
 
-ll <- list(c("SL.mean", "screen.corPearson"), 
+# SL.xgboost_mod <- function (Y, X, newX, family, obsWeights, id, ntrees = 1000, 
+#           max_depth = 4, shrinkage = 0.1, minobspernode = 10, params = list(), 
+#           nthread = 1, verbose = 0, save_period = NULL, ...) 
+# {
+#   pacman::p_load(xgboost)
+#   
+#   if (packageVersion("xgboost") < 0.6) 
+#     stop("SL.xgboost requires xgboost version >= 0.6, try help('SL.xgboost') for details")
+#   if (!is.matrix(X)) {
+#     X = model.matrix(~. - 1, X)
+#   }
+#   
+#   #browser()
+#   xgmat = xgboost::xgb.DMatrix(data = X, label = Y, weight = obsWeights)
+#   if (family$family == "gaussian") {
+#     if (packageVersion("xgboost") >= "1.1.1.1") {
+#       objective <- "reg:squarederror"
+#     }
+#     else {
+#       objective <- "reg:linear"
+#     }
+#     model = xgboost::xgboost(data = xgmat, objective = objective, 
+#                              nrounds = ntrees, max_depth = max_depth, min_child_weight = minobspernode, 
+#                              eta = shrinkage, verbose = verbose, nthread = nthread, 
+#                              params = params, save_period = save_period)
+#   }
+#   if (family$family == "binomial") {
+#     model = xgboost::xgboost(data = xgmat, objective = "binary:logistic", 
+#                              nrounds = ntrees, max_depth = max_depth, min_child_weight = minobspernode, 
+#                              eta = shrinkage, verbose = verbose, nthread = nthread, 
+#                              params = params, save_period = save_period, eval_metric = "logloss")
+#   }
+#   if (family$family == "multinomial") {
+#     model = xgboost::xgboost(data = xgmat, objective = "multi:softmax", 
+#                              nrounds = ntrees, max_depth = max_depth, min_child_weight = minobspernode, 
+#                              eta = shrinkage, verbose = verbose, num_class = length(unique(Y)), 
+#                              nthread = nthread, params = params, save_period = save_period)
+#   }
+#   
+# 
+#   if (!is.matrix(newX)) {
+#     newX = model.matrix(~. - 1, newX)
+#   }
+#   pred = predict(model, newdata = newX)
+#   fit = list(object = model)
+#   class(fit) = c("SL.xgboost")
+#   out = list(pred = pred, fit = fit)
+#   return(out)
+# }
+# 
+# ll <- list(c("SL.mean", "screen.corPearson"),
+#            c("SL.glm", "screen.corPearson"))
+
+ll <- list(c("SL.mean", "All"),
+           c("SL.glm", "All"),
+           c("SL.bayesglm", "All"),
+  
+           c("SL.mean", "screen.corPearson"),
            c("SL.glm", "screen.corPearson"),
-           c("SL.bayesglm", "screen.corPearson"), 
+           c("SL.bayesglm", "screen.corPearson"),
            c("SL.rpart", "screen.corPearson"),
-           c("SL.glm.interaction_info", "screen.corPearson"), 
-           c("SL.earth2", "screen.corPearson"), 
-           c("SL.gam2", "screen.corPearson"), 
-           #c("SL.polymars", "screen.corPearson"), 
-           c("SL.randomForest_grid1000", "screen.corPearson"), 
-           c("SL.nnet", "screen.corPearson"), 
-           c("SL.mean", "screen.cramersv_grid4"), 
-           c("SL.glm", "screen.cramersv_grid4"), 
-           c("SL.bayesglm", "screen.cramersv_grid4"), 
-           c("SL.rpart", "screen.cramersv_grid4"), 
-           c("SL.glm.interaction_info", "screen.cramersv_grid4"), 
-           c("SL.earth2", "screen.cramersv_grid4"),
-           c("SL.gam2", "screen.glmnet_nVar"), 
-           #c("SL.polymars", "screen.glmnet_nVar"),
-           c("SL.randomForest_grid1000", "screen.glmnet_nVar"), 
-           c("SL.nnet", "screen.glmnet_nVar"), 
-           c("SL.nnet", "All"),
-           c("SL.randomForest_grid1000", "All"),
+           c("SL.gam2", "screen.corPearson"),
+           
+           c("SL.mean", "screen.cramersv_grid4"),
+           c("SL.glm", "screen.cramersv_grid4"),
+           c("SL.bayesglm", "screen.cramersv_grid4"),
+           c("SL.rpart", "screen.cramersv_grid4"),
+           c("SL.gam2", "screen.cramersv_grid4"),
+           
+           c("SL.mean", "screen.glmnet_nVar"),
+           c("SL.glm", "screen.glmnet_nVar"),
+           c("SL.bayesglm", "screen.glmnet_nVar"),
+           c("SL.rpart", "screen.glmnet_nVar"),
+           c("SL.gam2", "screen.glmnet_nVar"),
+           
+           c("SL.mean", "screen.glmnet3"),
+           c("SL.glm", "screen.glmnet3"),
+           c("SL.bayesglm", "screen.glmnet3"),
+           c("SL.rpart", "screen.glmnet3"),
+           c("SL.gam2", "screen.glmnet3"),
+           
+           c("SL.glm.interaction_info", "screen.cramersv_grid4"),
+           c("SL.glm.interaction_info", "screen.glmnet3"),
+           
            c("SL.xgboost","All"),
-           #c("SL.NN_base_arch_A_l1_0.01", "screen.cramersv_grid4"), 
-           #c("SL.NN_base_arch_C_l1_0.01", "screen.cramersv_grid4"),
-           c("SL.NN_base_arch_A_l1_0.01", "All"))
-           #c("SL.NN_base_arch_C_l1_0.01", "All"))
-attr(ll, "return.fit") <- TRUE
+           c("SL.xgboost","screen.glmnet_nVar"),
+           c("SL.xgboost","screen.cramersv_grid4"),
+           
+           c("SL.earth2","All"),
+           c("SL.earth2","screen.glmnet_nVar"),
+           c("SL.earth2","screen.cramersv_grid4"),
+           
+           c("SL.nnet","All"),
+           c("SL.nnet","screen.glmnet_nVar"),
+           c("SL.nnet","screen.cramersv_grid4"),
+           
+           c("SL.randomForest_grid500","All"),
+           c("SL.randomForest_grid500","screen.glmnet_nVar"),
+           c("SL.randomForest_grid500","screen.cramersv_grid4"))
+           
+           #c("SL.NN_base_arch_A_l1_0.1", "All")
+           #c("SL.NN_base_arch_B_l1_0.01", "All"),
+           #c("SL.NN_base_arch_C_l1_0.01", "All"),
+           #c("SL.NN_base_arch_D_l1_0.01", "All"))
+attr(ll, "return.fit") <- FALSE
+
+# ll <- list(c("SL.mean", "All"),
+#            c("SL.glm", "screen.corPearson"),
+#            c("SL.glm", "screen.cramersv_grid4"))
+attr(ll, "return.fit") <- FALSE
+
+library(glmnet)
+screen.glmnet3 <- function(Y, X, family, alpha = 1, minscreen = 2, pw=F,
+                           maxtries=4, nfolds = 10, nlambda = 200, ...){
+  #cat("screen: Lasso \n")
+  if(family$family == "binomial" & all(Y%in%c(0,1))==FALSE){myfamily<- "gaussian"}else{myfamily<-family$family}
+  if (!is.matrix(X)) {X <- try(model.matrix(~-1 + ., data=X),silent=T)}
+  successfulfit <- FALSE
+  fitCV <- try(glmnet::cv.glmnet(x = X, y = Y, lambda = NULL, type.measure = "deviance",
+                                 nfolds = nfolds, family = myfamily, alpha = alpha,
+                                 nlambda = nlambda, keep=T),silent=T)
+  if(class(fitCV)=="try-error"){
+    i <- 2
+    while(successfulfit==FALSE & i<=maxtries){
+      if(pw==T){cat(paste("glmnet failed, new try #",i,"\n"))}
+      fitCV <- try(glmnet::cv.glmnet(x = X, y = Y, lambda = log(fitCV$glmnet.fit$lambda+1), type.measure = "deviance",
+                                     nfolds = nfolds, family = myfamily, alpha = alpha, nfolds=4,
+                                     nlambda = nlambda*(i+3), keep=T, foldid=sample(fitCV$foldid)),silent=T)
+      i <- i+1
+      if(class(fitCV)=="try-error"){successfulfit <- FALSE
+      }else{successfulfit <- TRUE}
+    }
+  }else{successfulfit <- TRUE}
+  whichVariable <- NULL
+  if(successfulfit==TRUE){
+    si <- try(abs((max(fitCV$nzero)- (dim(X)[2]/2))-fitCV$nzero),silent=T)
+    whichVariable2 <- try((as.numeric(coef(fitCV$glmnet.fit, s = fitCV$lambda.min))[-1] != 0),silent=T)
+    whichVariable3 <- try(as.numeric(glmnet::coef.glmnet(fitCV, s = fitCV$lambda[si==min(si)][1]))[-1] != 0,silent=T)
+    if(sum(whichVariable2)>1){whichVariable<-whichVariable2}else{if(sum(whichVariable3)>1 & sum(whichVariable3)<(dim(X)[2]/2)){whichVariable<-whichVariable3}}
+  }
+  if(is.null(whichVariable)){
+    whichVariable<-screen.cramersv_grid4(Y,X)
+    if(pw==T){cat("Lasso failed and screening was based on Cramer's V\n")}}
+  if(pw==T){cat(paste("Number of included variables:",sum(whichVariable),"\n"))}
+  return(whichVariable)
+}
 
 SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn_arc = "A", l1_pen = 0.1, ...) {
   
@@ -49,115 +167,117 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   # Keras Version >= 2.8 0
   tryCatch(set_random_seed(1), error = function(e) use_session_with_seed(1))
   
-  X <- X[,apply(X, 2, function(x) all(x != 1))] # SL passes a column of 1s (intercept)
-  newX <- newX[,apply(newX, 2, function(xx) all(xx != 1))]
+  tryCatch({
+      X <- X[,apply(X, 2, function(x) all(x != 1))] # SL passes a column of 1s (intercept)
+      newX <- newX[,apply(newX, 2, function(xx) all(xx != 1))]
+      
+      # SL sometimes indicates family$family == "binomial" when Y is actually continuous
+      family <- family$family 
+      if(length(unique(Y)) > 2) family <- "non-binomial"
+      
+      # SL sometimes adds an column in X/newX that is not in newX/X
+      if (ncol(X) != ncol(newX)) {
+        cl_Xcol <- colnames(X)
+        cl_newX <- colnames(newX)
+        newX <- newX[,cl_newX %in% cl_Xcol, drop = F]
+        X <- X[,cl_Xcol %in% cl_newX, drop = F]
+      }
+      
+      dd <- X <- X %>% as_tibble(.name_repair = "minimal")
+      newX <- newX %>% as_tibble(.name_repair = "minimal")
+      Y <- array(Y)
+      dd$Y <- Y
+      
+      spec <- feature_spec(dd, Y ~ . ) %>%
+        #step_crossed_column(c(all_numeric(), all_nominal()), hash_bucket_size = 100) %>%
+        step_numeric_column(all_numeric(), normalizer_fn = scaler_standard()) %>% 
+        step_categorical_column_with_vocabulary_list(all_nominal()) %>% # factors/categorical should be coded as char
+        step_indicator_column(all_nominal()) %>% 
+        #step_embedding_column(all_nominal(), dimension = ...) %>% 
+        fit()
+      
+      # check: str(spec$dense_features())
+      
+      input <- layer_input_from_dataset(dd %>% select(-Y))
+      
+      output <- switch(nn_arc, A = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                         layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
+                                     kernel_regularizer = regularizer_l1(l1_pen)),
+                       B = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                         layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
+                                     kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                         layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_2",
+                                     kernel_regularizer = regularizer_l1(l1_pen)),
+                       C = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                         layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_1",
+                                     kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                         layer_dropout(rate = 0.2) %>%
+                         layer_batch_normalization() %>%
+                         layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_2",
+                                     kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                         layer_dropout(rate = 0.2) %>%
+                         layer_batch_normalization(),
+                       D = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
+                         layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_1",
+                                     kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                         layer_dropout(rate = 0.2) %>%
+                         layer_batch_normalization() %>%
+                         layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_2", 
+                                     kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                         layer_dropout(rate = 0.2) %>%
+                         layer_batch_normalization() %>%
+                         layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_3", 
+                                     kernel_regularizer = regularizer_l1(l1_pen)) %>%
+                         layer_dropout(rate = 0.2) %>%
+                         layer_batch_normalization())
+      
+      output <- output %>%  layer_dense(units = 1, name = "output_layer", 
+                                        activation = ifelse(family == "binomial", "sigmoid", "linear")) 
+      model <- keras_model(input, output)
+      
+      model %>% compile(
+        loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
+        optimizer = optimizer_rmsprop(learning_rate = 0.1), #optimizer_rmsprop
+        metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
+      )
+      
+      #cat("Estimation with family", family, "and loss",model$loss,"\n")
+      
+      # loss and mse might not match during training due to regularizer (l1) and obs. weights
+      
+      lr_sched =  list(
+        callback_early_stopping(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"), patience = ifelse(family == "binomial", 50, 40)),
+        callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),
+                                      patience = ifelse(family == "binomial", 20, 15), factor = 0.1)
+        # callback_tensorboard("logs/run_a", histogram_freq = 5)
+        # callback_learning_rate_scheduler(
+        #   tf$keras$experimental$CosineDecayRestarts(.02, 10, t_mul = 2, m_mul = .8))
+      )
+      
+      history <- model %>% fit(x = X, y = Y, epochs = 12e3,
+                               validation_split = 0.2, verbose = 0, batch_size = 16L, shuffle = FALSE,
+                               view_metrics = FALSE, callbacks = lr_sched#, sample_weight = array(obsWeights/1000)
+      )
+      
+      #class(model) <- "SL.NN_base"
+      fit <- list(object = model)
+      class(fit) <- "SL.NN_base"
+      pred <- model %>% predict(newX)
+      ##cat("Mean NN Test:",mean(pred),"\n")
+      out <- list(pred = pred, fit = fit)
+      out
   
-  # SL sometimes indicates family$family == "binomial" when Y is actually continuous
-  family <- family$family 
-  if(length(unique(Y)) > 2) family <- "non-binomial"
-  
-  # SL sometimes adds an column in X/newX that is not in newX/X
-  if (ncol(X) != ncol(newX)) {
-    cl_Xcol <- colnames(X)
-    cl_newX <- colnames(newX)
-    newX <- newX[,cl_newX %in% cl_Xcol, drop = F]
-    X <- X[,cl_Xcol %in% cl_newX, drop = F]
-  }
-  
-  dd <- X <- X %>% as_tibble(.name_repair = "minimal")
-  newX <- newX %>% as_tibble(.name_repair = "minimal")
-  Y <- array(Y)
-  dd$Y <- Y
-  
-  spec <- feature_spec(dd, Y ~ . ) %>%
-    #step_crossed_column(c(all_numeric(), all_nominal()), hash_bucket_size = 100) %>%
-    step_numeric_column(all_numeric(), normalizer_fn = scaler_standard()) %>% 
-    step_categorical_column_with_vocabulary_list(all_nominal()) %>% # factors/categorical should be coded as char
-    step_indicator_column(all_nominal()) %>% 
-    #step_embedding_column(all_nominal(), dimension = ...) %>% 
-    fit()
-  
-  # check: str(spec$dense_features())
-  
-  input <- layer_input_from_dataset(dd %>% select(-Y))
-  
-  output <- switch(nn_arc, A = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
-                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
-                                 kernel_regularizer = regularizer_l1(l1_pen)),
-                   B = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
-                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_1",
-                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
-                     layer_dense(units = 8, activation = "relu", use_bias = T, name = "layer_2",
-                                 kernel_regularizer = regularizer_l1(l1_pen)),
-                   C = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
-                     layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_1",
-                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
-                     layer_dropout(rate = 0.2) %>%
-                     layer_batch_normalization() %>%
-                     layer_dense(units = 64, activation = "relu", use_bias = T, name = "layer_2",
-                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
-                     layer_dropout(rate = 0.2) %>%
-                     layer_batch_normalization(),
-                   D = input %>% layer_dense_features(dense_features(spec), name = "layer_0") %>%
-                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_1",
-                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
-                     layer_dropout(rate = 0.2) %>%
-                     layer_batch_normalization() %>%
-                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_2", 
-                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
-                     layer_dropout(rate = 0.2) %>%
-                     layer_batch_normalization() %>%
-                     layer_dense(units = 256, activation = "relu", use_bias = T, name = "layer_3", 
-                                 kernel_regularizer = regularizer_l1(l1_pen)) %>%
-                     layer_dropout(rate = 0.2) %>%
-                     layer_batch_normalization())
-  
-  output <- output %>%  layer_dense(units = 1, name = "output_layer", 
-                                    activation = ifelse(family == "binomial", "sigmoid", "linear")) 
-  model <- keras_model(input, output)
-  
-  model %>% compile(
-    loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
-    optimizer = optimizer_rmsprop(learning_rate = 0.1), #optimizer_rmsprop
-    metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
-  )
-  
-  #cat("Estimation with family", family, "and loss",model$loss,"\n")
-  
-  # loss and mse might not match during training due to regularizer (l1) and obs. weights
-  
-  lr_sched =  list(
-    callback_early_stopping(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"), patience = ifelse(family == "binomial", 50, 40)),
-    callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),
-                                  patience = ifelse(family == "binomial", 20, 15), factor = 0.1)
-    # callback_tensorboard("logs/run_a", histogram_freq = 5)
-    # callback_learning_rate_scheduler(
-    #   tf$keras$experimental$CosineDecayRestarts(.02, 10, t_mul = 2, m_mul = .8))
-  )
-  
-  history <- model %>% fit(x = X, y = Y, epochs = 12e3,
-                           validation_split = 0.2, verbose = 0, batch_size = 16L, shuffle = FALSE,
-                           view_metrics = FALSE, callbacks = lr_sched#, sample_weight = array(obsWeights/1000)
-  )
-  
-  #class(model) <- "SL.NN_base"
-  fit <- list(object = model)
-  class(fit) <- "SL.NN_base"
-  pred <- model %>% predict(newX)
-  ##cat("Mean NN Test:",mean(pred),"\n")
-  out <- list(pred = pred, fit = fit)
-  
-  # }, error = function(e) {
-  #   
-  #   meanY <- weighted.mean(Y, w = obsWeights)
-  #   pred <- rep.int(meanY, times = nrow(newX))
-  #   fit <- list(object = meanY)
-  #   out <- list(pred = pred, fit = fit)
-  #   class(out$fit) <- c("SL.mean")
-  #   #cat("- NN failed: took weighted mean instead - \n")
-  #   out
-  #   
-  # })
+  }, error = function(e) {
+
+      meanY <- weighted.mean(Y, w = obsWeights)
+      pred <- rep.int(meanY, times = nrow(newX))
+      fit <- list(object = meanY)
+      out <- list(pred = pred, fit = fit)
+      class(out$fit) <- c("SL.mean")
+      #cat("- NN failed: took weighted mean instead - \n")
+      out
+
+  })
   
   end_time <- Sys.time()
   #cat("- NN learner took", format(end_time - st_time, units = "min"),"-\n")
@@ -493,7 +613,7 @@ SL.randomForest_base <- function(Y, X, newX = NULL, family = list(), mtry = ifel
 }
 
 # Try different Hyperparamters
-tuneGrid <- expand.grid(ntree = c(500, 1000))
+tuneGrid <- expand.grid(ntree = c(250, 500))
 for (i in seq(nrow(tuneGrid))) {
   eval(parse(text = paste0(
     "SL.randomForest_grid", tuneGrid[i, 1],

@@ -33,12 +33,13 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   set_random_seed(1)
   
   X <- X[,apply(X, 2, function(x) all(x != 1))] # SL passes a column of 1s (intercept)
-  newX <- newX[,apply(newX, 2, function(x) all(x != 1))]
+  newX <- newX[,apply(newX, 2, function(xx) all(xx != 1))]
   
   # SL sometimes indicates family$family == "binomial" when Y is actually continuous
   family <- family$family 
   if(length(unique(Y)) > 2) family <- "non-binomial"
   
+  # SL sometimes adds an column in X/newX that is not in newX/X
   if (ncol(X) != ncol(newX)) {
     cl_Xcol <- colnames(X)
     cl_newX <- colnames(newX)
@@ -100,28 +101,33 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   
   model %>% compile(
     loss = ifelse(family == "binomial", "binary_crossentropy", "mse"), #loss_huber(), loss_mean_squared_error(), loss_binary_crossentropy()
-    optimizer = optimizer_rmsprop(learning_rate = 1e-3), #optimizer_rmsprop
+    optimizer = optimizer_rmsprop(learning_rate = 1e-2), #optimizer_rmsprop
     metrics = ifelse(family == "binomial", "accuracy", "mse") # "mse","mae","accuracy"
   )
   
-  lr_sched =  list(
-    callback_early_stopping(monitor = "val_loss", patience = ifelse(family == "binomial", 20, 10)),
-    callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_accuracy", "val_mse"),
-                                  patience = 5, factor = 0.8)
+  cat("Estimation with family", family, "and loss",model$loss,"\n")
+  
+  # loss and mse might not match during training due to regularizer (l1) and obs. weights
+  
+  lr_sched =  list(# accuracy is too unstable for callbacks, stops too quickly
+    callback_early_stopping(monitor = ifelse(family == "binomial", "val_loss", "val_mse"), patience = ifelse(family == "binomial", 150, 75)),
+    callback_reduce_lr_on_plateau(monitor = ifelse(family == "binomial", "val_loss", "val_mse"),
+                                  patience = ifelse(family == "binomial", 50, 25), factor = 0.5)
     # callback_tensorboard("logs/run_a", histogram_freq = 5)
     # callback_learning_rate_scheduler(
     #   tf$keras$experimental$CosineDecayRestarts(.02, 10, t_mul = 2, m_mul = .8))
   )
   
-  history <- model %>% fit(x = X, y = Y, epochs = 1,
-                           validation_split = 0.2, verbose = 2, batch_size = nrow(X),#shuffle = FALSE,
-                           view_metrics = FALSE, callbacks = lr_sched, sample_weight = array(obsWeights)
+  history <- model %>% fit(x = X, y = Y, epochs = 12e3,
+                           validation_split = 0.2, verbose = 2, batch_size = 64L, shuffle = FALSE,
+                           view_metrics = FALSE, callbacks = lr_sched#, sample_weight = array(obsWeights/1000)
   )
   
   #class(model) <- "SL.NN_base"
   fit <- list(object = model)
   class(fit) <- "SL.NN_base"
   pred <- model %>% predict(newX)
+  #cat("Mean NN Test:",mean(pred),"\n")
   out <- list(pred = pred, fit = fit)
   
   # }, error = function(e) {
@@ -141,12 +147,13 @@ SL.NN_base <- function(Y, X, newX = NULL, family = list(), obsWeights = NULL, nn
   
   out
   
-}
+} 
 
 ## Classifier 1:
 fam <- list(family = "binomial")
 nn_pred <- SL.NN_base(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y), 
-                      newX = d[tst_idx,] %>% select(-y), family = fam, obsWeights = rnorm(nrow(d[tr_idx,])))
+                      newX = d[tst_idx,] %>% select(-y), family = fam, 
+                      obsWeights = rep(1, nrow(d[tr_idx,])), nn_arc = "A")
 mean(nn_pred$pred)
 
 ## Classifier 2:
@@ -213,7 +220,7 @@ out_p <- SL.xgboost_man(Y = d[tr_idx,"y"], X = d[tr_idx,] %>% select(-y),
                         newX = d[tst_idx,] %>% select(-y), family = famil_y, 
                         obsWeights = rep(1, length(tr_idx)))
 
-preds <- data.frame(nn = nn_pred, gam = gam_pred, rf = fit.rf$test$votes[,"1"], 
+preds <- data.frame(nn = nn_pred$pred, gam = gam_pred, rf = fit.rf$test$votes[,"1"], 
                     xgb = out_p$pred, true = d[tst_idx, "y"])
 
 #colMeans(apply(preds, 2, function(x) x == preds$true))
