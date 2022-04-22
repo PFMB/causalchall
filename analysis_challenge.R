@@ -1,7 +1,7 @@
 #setwd("C:/Users/01465840.F875A4D1C344/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
 #setwd("C:/Users/ua341au/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
 #setwd("/Users/flipst3r/RStHomeDir/GitHub/causalchall")
-#setwd("/cluster/home/phibauma/causalchall")
+setwd("/cluster/home/phibauma/causalchall")
 #setwd("/cluster/home/scstepha/causalchall")
 #setwd("/home/david/causalchall")
 #
@@ -10,13 +10,13 @@ library(doParallel)
 library(foreach)
 library(msm)
 # index
-index <- 1:10 #1:1700 # 3400 1701:3400
+index <- 1:1700 #1:1700 # 3400 1701:3400
 index_str <- formatC(index, width = 4, format = "d", flag = "0")
 #
 source('own_learners.r') # case sensitive .r vs .R on cluster
 source('ltmleMSM_CI.R')
 
-ncores<-10
+ncores<-48
 library(SuperLearner) # so SL.mean etc is found
 cl <- parallel::makeCluster(ncores, outfile = ""); doParallel::registerDoParallel(cl)
 exp.var <- setdiff(unlist(ll),"All")
@@ -28,10 +28,10 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         
         set.seed(1)
         st_time <- Sys.time()
-        L_nodes <- c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3", 
-          "V5_A_avg.3",  "V5_B_avg.3",  "V5_C_avg.3",
-          "n.patients.4", "V1_avg.4", "V2_avg.4",  "V3_avg.4", "V4_avg.4", 
-          "V5_A_avg.4",  "V5_B_avg.4",  "V5_C_avg.4"
+        L_nodes <- c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3",
+          "V5_A_avg.3",  "V5_B_avg.3",  "V5_C_avg.3", "n.patients.4", "V1_avg.4", 
+          "V2_avg.4",  "V3_avg.4", "V4_avg.4",
+          "V5_A_avg.4",  "V5_B_avg.4",  "V5_C_avg.4",  "L1_4", "L2_4", "L3_4"
         )
         
         #
@@ -53,6 +53,7 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         dwide <- dwide[,-c(1,grep("A.1",colnames(dwide)),grep("A.2",colnames(dwide)))]
         dwide$X4 <- as.factor(dwide$X4)
         dwide$X2 <- as.factor(dwide$X2)
+
         # descriptives
         #plot(density(sqrt(dwide$n.patients.2)))
         ### TO DO Daten anschauen und verstehen!
@@ -64,9 +65,13 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         library(ltmle)
         library(arm) # f?r invlogit und bayesglm
         library(data.table)
-        #setDT(dwide)
-        #dwide[,(L_nodes) := lapply(.SD, function(x) log(x + abs(min(x)) + 1)), .SDcols = L_nodes]
-        
+        setDT(dwide)
+        for(i in 1:3) {
+          dwide[, paste0("L",i,"_", 4) := rnorm(500)]
+        }
+        dwide[,(L_nodes) := lapply(.SD, function(x) log(x + abs(min(x)) + 1)), .SDcols = L_nodes]
+        re_order <- dwide$Y.4; dwide$Y.4 <- NULL
+        dwide$Y.4 <- re_order
         source('own_learners.r')
         
         #                        
