@@ -10,13 +10,13 @@ library(doParallel)
 library(foreach)
 library(msm)
 # index
-index <- 1:1700 #1:1700 # 3400 1701:3400
+index <- 1:2 #1:1700 # 3400 1701:3400
 index_str <- formatC(index, width = 4, format = "d", flag = "0")
 #
 source('own_learners.r') # case sensitive .r vs .R on cluster
 source('ltmleMSM_CI.R')
 
-ncores<-48
+ncores<-2
 library(SuperLearner) # so SL.mean etc is found
 cl <- parallel::makeCluster(ncores, outfile = ""); doParallel::registerDoParallel(cl)
 exp.var <- setdiff(unlist(ll),"All")
@@ -48,11 +48,18 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         d3$A <- d3$Z*d3$post
         d3 <- d3[,c("id.practice","year","Z","X1","X2","X3","X4","X5","X6","X7","X8","X9","A","n.patients","V1_avg",
             "V2_avg","V3_avg","V4_avg","V5_A_avg","V5_B_avg","V5_C_avg","Y")]
+        cat("Head of d3: \n\n")
+        print(head(d3))
+        cat("End of head of d3: \n\n")
         dwide <- reshape(d3,v.names=c("A","n.patients","V1_avg","V2_avg","V3_avg","V4_avg","V5_A_avg","V5_B_avg","V5_C_avg","Y"),
                  idvar = "id.practice",timevar="year",direction="wide")
         dwide <- dwide[,-c(1,grep("A.1",colnames(dwide)),grep("A.2",colnames(dwide)))]
         dwide$X4 <- as.factor(dwide$X4)
         dwide$X2 <- as.factor(dwide$X2)
+        
+        cat("Head of dwide: \n\n")
+        print(head(dwide))
+        cat("End of head of dwide: \n\n")
 
         # descriptives
         #plot(density(sqrt(dwide$n.patients.2)))
