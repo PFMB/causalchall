@@ -54,3 +54,12 @@ ggsave("logresults_causal_challange.pdf", height = 4, width = 10)
 # abline(v = round(mean(satt_4),2), col = "red")
 # avg <- format(round(mean(satt_4),2), digits=4)
 # legend(x = "topright", legend = bquote(bar(x)*" = " ~ .(avg)))
+
+
+## Learner Weights
+
+fread("LogResults/Qweights_1.csv")
+fread("LogResults/Qweights_2.csv")
+
+fread("LogResults/gweights_1.csv")
+fread("LogResults/gweights_2.csv")
