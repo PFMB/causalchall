@@ -1,31 +1,37 @@
-#setwd("C:/Users/01465840.F875A4D1C344/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
+# Set working directory
+setwd("C:/Users/01465840.F875A4D1C344/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
 #setwd("C:/Users/ua341au/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
 #setwd("/Users/flipst3r/RStHomeDir/GitHub/causalchall")
-setwd("/cluster/home/phibauma/causalchall")
+# setwd("/cluster/home/phibauma/causalchall")
 #setwd("/cluster/home/scstepha/causalchall")
 #setwd("/home/david/causalchall")
-#
+
+# Load packages
 library(parallel)
 library(doParallel)
 library(foreach)
 library(msm)
-# index
-index <- 1:2 #1:1700 # 3400 1701:3400
-index_str <- formatC(index, width = 4, format = "d", flag = "0")
-#
-source('own_learners.r') # case sensitive .r vs .R on cluster
-source('ltmleMSM_CI.R')
 
+# index  -set to 1:3400 for final analysis; or split such as 1:1700 and 1701:3400
+index <- 1:2 #1:1700  1701:3400
+index_str <- formatC(index, width = 4, format = "d", flag = "0")
+
+# use additional files (case sensitive .r vs .R on cluster)
+source('own_learners.r') # learning algorithms
+source('ltmleMSM_CI.R')  # estimating CI with delta method for ltmle object
+
+# set up parallelization
 ncores<-2
 library(SuperLearner) # so SL.mean etc is found
 cl <- parallel::makeCluster(ncores, outfile = ""); doParallel::registerDoParallel(cl)
 exp.var <- setdiff(unlist(ll),"All")
 prog=T
 if(prog==TRUE){write(matrix("started with analysis..."),file=paste0(getwd(),"/progress.txt",sep=""))}
-#
+
+# START ANALYSIS
 
 analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
-        
+        #
         set.seed(1)
         st_time <- Sys.time()
         L_nodes <- c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3",
@@ -33,7 +39,6 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
           "V2_avg.4",  "V3_avg.4", "V4_avg.4",
           "V5_A_avg.4",  "V5_B_avg.4",  "V5_C_avg.4",  "L1_4", "L2_4", "L3_4"
         )
-        
         #
         if(prog==TRUE){write(matrix(paste("started with analyzing dataset number...",i,"\n")),file=paste0(getwd(),"/progress.txt",sep=""),append=TRUE)}
         #  
@@ -43,54 +48,41 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         d1 <- read.csv(mydata)
         d2 <- read.csv(mydata2)
         d3 <- merge(d1,d2)
-        
         # data management
         d3$A <- d3$Z*d3$post
         d3 <- d3[,c("id.practice","year","Z","X1","X2","X3","X4","X5","X6","X7","X8","X9","A","n.patients","V1_avg",
             "V2_avg","V3_avg","V4_avg","V5_A_avg","V5_B_avg","V5_C_avg","Y")]
-        cat("Head of d3: \n\n")
-        print(head(d3))
-        cat("End of head of d3: \n\n")
+
         dwide <- reshape(d3,v.names=c("A","n.patients","V1_avg","V2_avg","V3_avg","V4_avg","V5_A_avg","V5_B_avg","V5_C_avg","Y"),
                  idvar = "id.practice",timevar="year",direction="wide")
         dwide <- dwide[,-c(1,grep("A.1",colnames(dwide)),grep("A.2",colnames(dwide)))]
         dwide$X4 <- as.factor(dwide$X4)
         dwide$X2 <- as.factor(dwide$X2)
         
-        cat("Head of dwide: \n\n")
-        print(head(dwide))
-        cat("End of head of dwide: \n\n")
-
-        # descriptives
-        #plot(density(sqrt(dwide$n.patients.2)))
-        ### TO DO Daten anschauen und verstehen!
-        ### TO DO naiver vergleich mit Mittelwerten
-        
         ##############
         # LTMLE MSM  #
         ##############
         library(ltmle)
-        library(arm) # f?r invlogit und bayesglm
+        library(arm) # for invlogit function
         library(data.table)
         setDT(dwide)
         for(i in 1:3) {
-          dwide[, paste0("L",i,"_", 4) := rnorm(500)]
+          dwide[, paste0("L",i,"_", 4) := rnorm(500)] # adding noise variables
         }
-        dwide[,(L_nodes) := lapply(.SD, function(x) log(x + abs(min(x)) + 1)), .SDcols = L_nodes]
+        dwide[,(L_nodes) := lapply(.SD, function(x) log(x + abs(min(x)) + 1)), .SDcols = L_nodes] # adding log() to confounders
         re_order <- dwide$Y.4; dwide$Y.4 <- NULL
         dwide$Y.4 <- re_order
-        source('own_learners.r')
-        
-        #                        
+        source('own_learners.r') #load SL approach
+        # interventions                       
         regimesList <- list(function(row) c(1,1),
                     function(row) c(0,0)
                     
         )
-        
+        # summary measures for longitudinal binary interventions
         my.sum.measures <- array(c(c(1,0),c(1,1),
                            c(1,0),c(2,2))
                          ,dim=c(2,2,2),dimnames=list(NULL,c("A","time"),NULL))
-        
+        # MSM for main estimand (check paper for details, and explanation on why time should have been added here)
         m_1 <- try(ltmleMSM(dwide,
                     Anodes=c("A.3","A.4"),
                     Lnodes=L_nodes,
@@ -106,13 +98,12 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         q_w <- as.data.frame(learner_weights_summary_Q(m_1))
         g_w <- as.data.frame(learner_weights_summary_g(m_1))
         summary(m_1)
-        #cc_trunc(m_1) # correct?
+
         cat("m_1 finished \n")
         
         #### ESTIMANDS
         a<-attr(m_1$transformOutcome,"Yrange")[1]
         b<-attr(m_1$transformOutcome,"Yrange")[2] 
-        shrink <- 1
         #
         SATT <- (invlogit(t(c(1,1,1,1))%*%m_1$beta)*(b-a)+a) - (invlogit(t(c(1,0,1,0))%*%m_1$beta)*(b-a)+a)
         SATT
@@ -122,14 +113,9 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         SATT_upper <- SATT + qnorm(0.95)*(se_SATT/sqrt(dim(dwide)[1]))
         SATT_lower
         SATT_upper
-        # Bootstrap Resultate
-        #       5%      95% 
-        # 10.56665 47.38844 
-        
         rm(m_1)
         
         ###
-        
         m_2 <- try(ltmleMSM(dwide,
                             Anodes=c("A.3","A.4"),
                             Lnodes=L_nodes,
@@ -333,7 +319,7 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         SATT_X5_0_lower <- SATT_X5_0 - qnorm(0.95)*(se_SATT_X5_0/sqrt(dim(dwide)[1]))
         SATT_X5_0_upper <- SATT_X5_0 + qnorm(0.95)*(se_SATT_X5_0/sqrt(dim(dwide)[1]))
         
-        ###
+        ### This code shows how ltmle() code have been used for effect estimation - drawback: CI estimation
         
         # # LTMLE plain
         # m_1_0 <- try(ltmle(dwide,

@@ -114,7 +114,7 @@ attr(ll, "return.fit") <- FALSE
 attr(ll, "return.fit") <- FALSE
 
 library(glmnet)
-screen.glmnet3 <- function(Y, X, family, alpha = 1, minscreen = 2, pw=F,
+screen.glmnet3 <- function(Y, X, family, alpha = 1, minscreen = 2, pw=T,
                            maxtries=4, nfolds = 10, nlambda = 200, ...){
   #cat("screen: Lasso \n")
   if(family$family == "binomial" & all(Y%in%c(0,1))==FALSE){myfamily<- "gaussian"}else{myfamily<-family$family}
@@ -774,7 +774,7 @@ SL.glm.interaction_info <- function(Y, X, newX = NULL, family = list(), obsWeigh
     out <- list(pred = pred, fit = fit)
   })
   
-  #cat("- GLM Interaction was finished lasting: ", round(unclass(glm_time)["elapsed"], 2), " - \n")
+  cat("- GLM Interaction was finished lasting: ", round(unclass(glm_time)["elapsed"], 2), " - \n")
   return(out)
 }
 
