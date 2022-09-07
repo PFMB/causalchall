@@ -2,7 +2,7 @@ rm(list = ls())
 library(data.table)
 library(ggplot2)
 
-# substitute "LogResults" with "Results"
+# either choose "LogResults" or "Results"
 
 d1 <- fread("LogResults/results_1.csv", header = T)
 d2 <- fread("LogResults/results_2.csv", header = T)
@@ -32,30 +32,15 @@ dat_text <- data.frame(
 
 (p <- ggplot(d, aes(ATT)) + geom_density() + 
         geom_vline(data = d, aes(xintercept = mean(ATT), group = year), colour = "blue") +
-        geom_vline(aes(xintercept = 0.1), colour = "red") +
         facet_grid(.~ year) + ylab("Density") +
+        geom_vline(data = d[year == "Year 3"], aes(xintercept = -0.2), colour = "red") +
+        geom_vline(data = d[year == "Year 4"], aes(xintercept = 0.8), colour = "red") +
         geom_text(data    = dat_text, parse = T,
                   mapping = aes(x = x, y = y, label = label),
                   size = 4) +
         theme_light())
 
 ggsave("logresults_causal_challange.pdf", height = 4, width = 10)
-
-# Old plot
-#par(mfrow = c(1,2))
-# d <- fread("results1_1700.csv")
-# satt_3 <- d[variable == "Overall" & year == "3",]$satt
-# hist(satt_3, main = "Year 3", ylim = c(0,1200), xlab = "")
-# abline(v = round(mean(satt_3),2), col = "red")
-# avg <- format(round(mean(satt_3),2), digits=4)
-# legend(x = "topright", legend = bquote(bar(x)*" = " ~ .(avg)))
-# 
-# satt_4 <- d[variable == "Overall" & year == "4",]$satt
-# hist(satt_4, main = "Year 4", ylim = c(0,1200), xlab = "")
-# abline(v = round(mean(satt_4),2), col = "red")
-# avg <- format(round(mean(satt_4),2), digits=4)
-# legend(x = "topright", legend = bquote(bar(x)*" = " ~ .(avg)))
-
 
 ## Learner Weights
 
