@@ -52,60 +52,60 @@
 #   return(out)
 # }
 # 
-ll <- list(c("SL.mean", "screen.corPearson"),
-           c("SL.glm", "screen.corPearson"))
+# ll <- list(c("SL.mean", "screen.corPearson"),
+#            c("SL.glm", "screen.corPearson"))
 
-# ll <- list(c("SL.mean", "All"),
-#            c("SL.glm", "All"),
-#            c("SL.bayesglm", "All"),
-#   
-#            c("SL.mean", "screen.corPearson"),
-#            c("SL.glm", "screen.corPearson"),
-#            c("SL.bayesglm", "screen.corPearson"),
-#            c("SL.rpart", "screen.corPearson"),
-#            c("SL.gam2", "screen.corPearson"),
-#            
-#            c("SL.mean", "screen.cramersv_grid4"),
-#            c("SL.glm", "screen.cramersv_grid4"),
-#            c("SL.bayesglm", "screen.cramersv_grid4"),
-#            c("SL.rpart", "screen.cramersv_grid4"),
-#            c("SL.gam2", "screen.cramersv_grid4"),
-#            
-#            c("SL.mean", "screen.glmnet_nVar"),
-#            c("SL.glm", "screen.glmnet_nVar"),
-#            c("SL.bayesglm", "screen.glmnet_nVar"),
-#            c("SL.rpart", "screen.glmnet_nVar"),
-#            c("SL.gam2", "screen.glmnet_nVar"),
-#            
-#            c("SL.mean", "screen.glmnet3"),
-#            c("SL.glm", "screen.glmnet3"),
-#            c("SL.bayesglm", "screen.glmnet3"),
-#            c("SL.rpart", "screen.glmnet3"),
-#            c("SL.gam2", "screen.glmnet3"),
-#            
-#            c("SL.glm.interaction_info", "screen.cramersv_grid4"),
-#            c("SL.glm.interaction_info", "screen.glmnet3"),
-#            
-#            c("SL.xgboost","All"),
-#            c("SL.xgboost","screen.glmnet_nVar"),
-#            c("SL.xgboost","screen.cramersv_grid4"),
-#            
-#            c("SL.earth2","All"),
-#            c("SL.earth2","screen.glmnet_nVar"),
-#            c("SL.earth2","screen.cramersv_grid4"),
-#            
-#            c("SL.nnet","All"),
-#            c("SL.nnet","screen.glmnet_nVar"),
-#            c("SL.nnet","screen.cramersv_grid4"),
-#            
-#            c("SL.randomForest_grid500","All"),
-#            c("SL.randomForest_grid500","screen.glmnet_nVar"),
-#            c("SL.randomForest_grid500","screen.cramersv_grid4"))
-#            
-#            #c("SL.NN_base_arch_A_l1_0.1", "All")
-#            #c("SL.NN_base_arch_B_l1_0.01", "All"),
-#            #c("SL.NN_base_arch_C_l1_0.01", "All"),
-#            #c("SL.NN_base_arch_D_l1_0.01", "All"))
+ll <- list(c("SL.mean", "All"),
+           c("SL.glm", "All"),
+           c("SL.bayesglm", "All"),
+
+           c("SL.mean", "screen.corPearson"),
+           c("SL.glm", "screen.corPearson"),
+           c("SL.bayesglm", "screen.corPearson"),
+           c("SL.rpart", "screen.corPearson"),
+           c("SL.gam2", "screen.corPearson"),
+
+           c("SL.mean", "screen.cramersv_grid4"),
+           c("SL.glm", "screen.cramersv_grid4"),
+           c("SL.bayesglm", "screen.cramersv_grid4"),
+           c("SL.rpart", "screen.cramersv_grid4"),
+           c("SL.gam2", "screen.cramersv_grid4"),
+
+           c("SL.mean", "screen.glmnet_nVar"),
+           c("SL.glm", "screen.glmnet_nVar"),
+           c("SL.bayesglm", "screen.glmnet_nVar"),
+           c("SL.rpart", "screen.glmnet_nVar"),
+           c("SL.gam2", "screen.glmnet_nVar"),
+
+           c("SL.mean", "screen.glmnet3"),
+           c("SL.glm", "screen.glmnet3"),
+           c("SL.bayesglm", "screen.glmnet3"),
+           c("SL.rpart", "screen.glmnet3"),
+           c("SL.gam2", "screen.glmnet3"),
+
+           c("SL.glm.interaction_info", "screen.cramersv_grid4"),
+           c("SL.glm.interaction_info", "screen.glmnet3"),
+
+           c("SL.xgboost","All"),
+           c("SL.xgboost","screen.glmnet_nVar"),
+           c("SL.xgboost","screen.cramersv_grid4"),
+
+           c("SL.earth2","All"),
+           c("SL.earth2","screen.glmnet_nVar"),
+           c("SL.earth2","screen.cramersv_grid4"),
+
+           c("SL.nnet","All"),
+           c("SL.nnet","screen.glmnet_nVar"),
+           c("SL.nnet","screen.cramersv_grid4"),
+
+           c("SL.randomForest_grid500","All"),
+           c("SL.randomForest_grid500","screen.glmnet_nVar"),
+           c("SL.randomForest_grid500","screen.cramersv_grid4"))
+
+           #c("SL.NN_base_arch_A_l1_0.1", "All")
+           #c("SL.NN_base_arch_B_l1_0.01", "All"),
+           #c("SL.NN_base_arch_C_l1_0.01", "All"),
+           #c("SL.NN_base_arch_D_l1_0.01", "All"))
 attr(ll, "return.fit") <- FALSE
 
 # ll <- list(c("SL.mean", "All"),
