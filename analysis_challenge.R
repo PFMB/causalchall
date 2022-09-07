@@ -66,9 +66,9 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         library(arm) # for invlogit function
         library(data.table)
         setDT(dwide)
-        for(i in 1:3) {
-          dwide[, paste0("L",i,"_", 4) := rnorm(500)] # adding noise variables
-        }
+        #for(i in 1:3) {
+        #  dwide[, paste0("L",i,"_", 4) := rnorm(500)] # adding noise variables
+        #}
         dwide[,(L_nodes) := lapply(.SD, function(x) log(x + abs(min(x)) + 1)), .SDcols = L_nodes] # adding log() to confounders
         re_order <- dwide$Y.4; dwide$Y.4 <- NULL
         dwide$Y.4 <- re_order
