@@ -1,5 +1,5 @@
 # Set working directory
-setwd("C:/Users/01465840.F875A4D1C344/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
+setwd("C:/Users/01465840.F875A4D1C344/Dropbox/Documents/GitHub/causalchall")
 #setwd("C:/Users/ua341au/Dropbox/Documents/Projects_Other/ACIC_2022_data_challenge")
 #setwd("/Users/flipst3r/RStHomeDir/GitHub/causalchall")
 # setwd("/cluster/home/phibauma/causalchall")
@@ -37,7 +37,7 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         L_nodes <- c("n.patients.3", "V1_avg.3", "V2_avg.3",  "V3_avg.3", "V4_avg.3",
           "V5_A_avg.3",  "V5_B_avg.3",  "V5_C_avg.3", "n.patients.4", "V1_avg.4", 
           "V2_avg.4",  "V3_avg.4", "V4_avg.4",
-          "V5_A_avg.4",  "V5_B_avg.4",  "V5_C_avg.4",  "L1_4", "L2_4", "L3_4"
+          "V5_A_avg.4",  "V5_B_avg.4",  "V5_C_avg.4"
         )
         #
         if(prog==TRUE){write(matrix(paste("started with analyzing dataset number...",i,"\n")),file=paste0(getwd(),"/progress.txt",sep=""),append=TRUE)}
@@ -72,7 +72,7 @@ analysis <- foreach(i = index, .export=exp.var, .errorhandling="pass") %dopar% {
         dwide[,(L_nodes) := lapply(.SD, function(x) log(x + abs(min(x)) + 1)), .SDcols = L_nodes] # adding log() to confounders
         re_order <- dwide$Y.4; dwide$Y.4 <- NULL
         dwide$Y.4 <- re_order
-        source('own_learners.r') #load SL approach
+        source('own_learners.r') #load SL approach -> object "ll" specifies learners. Modify for faster testing to, e.g.  ll <- list(c("SL.mean", "All"), c("SL.glm", "All"))
         # interventions                       
         regimesList <- list(function(row) c(1,1),
                     function(row) c(0,0)
